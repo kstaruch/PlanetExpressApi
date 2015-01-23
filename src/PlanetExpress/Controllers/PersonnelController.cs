@@ -13,11 +13,11 @@ namespace PlanetExpress.Controllers
 
         public PersonnelController()
         {
-            this.employees = new Employee[]
+            employees = new[]
             {
-                new Employee("Philip J. Fry"), 
-                new Employee("Turanga Leela"),
-                new Employee("Bender Bending Rodriguez"),
+                new Employee("fry", "Philip J. Fry"), 
+                new Employee("leela", "Turanga Leela"),
+                new Employee("bender", "Bender Bending Rodriguez"),
             };
 
         }
@@ -27,15 +27,22 @@ namespace PlanetExpress.Controllers
             return employees;
         }
 
+        public Employee Get(string id)
+        {
+            return employees.FirstOrDefault(e => e.Id == id);
+        }
+
     }
 
     public class Employee
     {
-        public Employee(string name)
+        public Employee(string id, string name)
         {
+            Id = id;
             Name = name;
         }
 
+        public string Id { get; set; }
         public string Name { get; set; }
     }
 }

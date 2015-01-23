@@ -52,6 +52,11 @@ namespace PlanetExpress.Controllers
             return Deliveries;
         }
 
+        public Delivery Get(string id)
+        {
+            return Deliveries.FirstOrDefault(d => d.Id == id);
+        }
+
         [HttpPut]
         public void ChangeStatus(string id, string status)
         {
@@ -60,7 +65,6 @@ namespace PlanetExpress.Controllers
             {
                 delivery.ChangeStatus(status);
             }
-
         }
 
         public IList<Delivery> Deliveries { get; protected set; }

@@ -20,7 +20,8 @@ namespace PlanetExpress.Controllers
                     Desination = "destination1",
                     PlacedAt = DateTime.Now,
                     PlacedBy = "some_guy1",
-                    Status = "Good news, everyone!"
+                    Status = "Good news, everyone!",
+                    HandlerId = "fry"
                 }, 
                 new Delivery
                 {
@@ -30,7 +31,8 @@ namespace PlanetExpress.Controllers
                     Desination = "destination2",
                     PlacedAt = DateTime.Now,
                     PlacedBy = "some_guy2",
-                    Status = "Good news, everyone!"
+                    Status = "Good news, everyone!",
+                    HandlerId = "leela"
                 }, 
                 new Delivery
                 {
@@ -40,7 +42,8 @@ namespace PlanetExpress.Controllers
                     Desination = "destination3",
                     PlacedAt = DateTime.Now,
                     PlacedBy = "some_guy3",
-                    Status = "Good news, everyone!"
+                    Status = "Good news, everyone!",
+                    HandlerId = "bender"
                 }
             });
 
@@ -99,6 +102,7 @@ namespace PlanetExpress.Controllers
         public string Status { get; set; }
         public DateTime PlacedAt { get; set; }
         public string PlacedBy { get; set; }
+        public string HandlerId { get; set; }
 
         public void ChangeStatus(string status)
         {

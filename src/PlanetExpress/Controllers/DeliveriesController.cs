@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
-using System.Net.Http;
 using System.Web.Http;
 
 namespace PlanetExpress.Controllers
 {
+    [RoutePrefix("api/deliveries")]
     public class DeliveriesController : ApiController
     {
         public DeliveriesController()
@@ -47,24 +46,45 @@ namespace PlanetExpress.Controllers
 
         }
 
-        public IEnumerable<Delivery> Get()
-        {   
-            return Deliveries;
-        }
-
-        public Delivery Get(string id)
+        [HttpGet, Route("")]
+        public IHttpActionResult Get()
         {
-            return Deliveries.FirstOrDefault(d => d.Id == id);
+            return Ok(Deliveries);
         }
 
-        [HttpPut]
-        public void ChangeStatus(string id, string status)
+        [HttpGet, Route("{id}")]
+        public IHttpActionResult Get(string id)
+        {
+
+            var delivery = Deliveries.FirstOrDefault(d => d.Id == id);
+            if (delivery == default(Delivery))
+            {
+                return NotFound();
+            }
+            return Ok(delivery);
+        }
+
+        [HttpGet, Route("{id}/status")]
+        public IHttpActionResult GetStatusOfDelivery(string id)
         {
             var delivery = Deliveries.FirstOrDefault(d => d.Id == id);
-            if (delivery != default(Delivery))
+            if (delivery == default(Delivery))
             {
-                delivery.ChangeStatus(status);
+                return NotFound();
             }
+            return Ok(delivery.Status);
+        }
+
+        [HttpPut, Route("{id}/status")]
+        public IHttpActionResult ChangeStatus(string id, [FromUri]string status)
+        {
+            var delivery = Deliveries.FirstOrDefault(d => d.Id == id);
+            if (delivery == default(Delivery))
+            {
+                return NotFound();
+            }
+            delivery.ChangeStatus(status);
+            return Ok();
         }
 
         public IList<Delivery> Deliveries { get; protected set; }

@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Net;
-using System.Net.Http;
 using System.Web.Http;
 
 namespace PlanetExpress.Controllers
 {
+    [RoutePrefix("api/personnel")]
     public class PersonnelController : ApiController
     {
         private readonly IEnumerable<Employee> employees;
@@ -22,14 +20,21 @@ namespace PlanetExpress.Controllers
 
         }
 
-        public IEnumerable<Employee> Get()
+        [HttpGet, Route("")]
+        public IHttpActionResult Get()
         {
-            return employees;
+            return Ok(employees);
         }
 
-        public Employee Get(string id)
+        [HttpGet, Route("{id}")]
+        public IHttpActionResult Get(string id)
         {
-            return employees.FirstOrDefault(e => e.Id == id);
+            var emp = employees.FirstOrDefault(e => e.Id == id);
+            if (emp == default(Employee))
+            {
+                return NotFound();
+            }
+            return Ok(emp);
         }
 
     }

@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web.Http;
+using PlanetExpress.Models;
 
 namespace PlanetExpress.Controllers
 {
@@ -21,7 +23,7 @@ namespace PlanetExpress.Controllers
                     PlacedAt = DateTime.Now,
                     PlacedBy = "some_guy1",
                     Status = "Good news, everyone!",
-                    HandlerId = "fry"
+                    HandlerId = "fry",
                 }, 
                 new Delivery
                 {
@@ -32,7 +34,7 @@ namespace PlanetExpress.Controllers
                     PlacedAt = DateTime.Now,
                     PlacedBy = "some_guy2",
                     Status = "Good news, everyone!",
-                    HandlerId = "leela"
+                    HandlerId = "leela",
                 }, 
                 new Delivery
                 {
@@ -43,7 +45,7 @@ namespace PlanetExpress.Controllers
                     PlacedAt = DateTime.Now,
                     PlacedBy = "some_guy3",
                     Status = "Good news, everyone!",
-                    HandlerId = "bender"
+                    HandlerId = "bender",
                 }
             });
 
@@ -52,10 +54,43 @@ namespace PlanetExpress.Controllers
         [HttpGet, Route("")]
         public IHttpActionResult Get()
         {
-            return Ok(Deliveries);
+            var deliveries = Deliveries.Select(d =>
+            {
+                d.Links = CreateLinks(d);
+                return d;
+            });
+
+            return Ok(deliveries);
         }
 
-        [HttpGet, Route("{id}")]
+        private IEnumerable<Link> CreateLinks(Delivery delivery)
+        {
+            var links = new[]
+            {
+                new Link
+                {
+                    Method = "GET",
+                    Rel = "self",
+                    Href = Url.Link("GetDeliveryById", new {id = delivery.Id})
+                },
+                new Link
+                {
+                    Method = "GET",
+                    Rel = "handler",
+                    Href = Url.Link("GetEmployeeById", new {id = delivery.HandlerId})
+                },
+                new Link
+                {
+                    Method = "PUT",
+                    Rel = "status-delivered",
+                    Href = Url.Link("ChangeStatusById", new {id = delivery.Id, status = "delivered"})
+                }
+            };
+            return links;
+        }
+
+
+        [HttpGet, Route("{id}", Name = "GetDeliveryById")]
         public IHttpActionResult Get(string id)
         {
 
@@ -67,7 +102,7 @@ namespace PlanetExpress.Controllers
             return Ok(delivery);
         }
 
-        [HttpGet, Route("{id}/status")]
+        [HttpGet, Route("{id}/status", Name = "GetStatusById")]
         public IHttpActionResult GetStatusOfDelivery(string id)
         {
             var delivery = Deliveries.FirstOrDefault(d => d.Id == id);
@@ -78,7 +113,7 @@ namespace PlanetExpress.Controllers
             return Ok(delivery.Status);
         }
 
-        [HttpPut, Route("{id}/status")]
+        [HttpPut, Route("{id}/status", Name = "ChangeStatusById")]
         public IHttpActionResult ChangeStatus(string id, [FromUri]string status)
         {
             var delivery = Deliveries.FirstOrDefault(d => d.Id == id);
@@ -103,6 +138,8 @@ namespace PlanetExpress.Controllers
         public DateTime PlacedAt { get; set; }
         public string PlacedBy { get; set; }
         public string HandlerId { get; set; }
+        public Link Handler { get; set; }
+        public IEnumerable<Link> Links;
 
         public void ChangeStatus(string status)
         {

@@ -26,7 +26,7 @@ namespace PlanetExpress.Controllers
             return Ok(employees);
         }
 
-        [HttpGet, Route("{id}")]
+        [HttpGet, Route("{id}", Name = "GetEmployeeById")]
         public IHttpActionResult Get(string id)
         {
             var emp = employees.FirstOrDefault(e => e.Id == id);

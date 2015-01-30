@@ -2,8 +2,13 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Web.Http;
+using System.Web.Http.Routing;
 using PlanetExpress.Models;
+
+//TODO: client
+//TODO: templates
 
 namespace PlanetExpress.Controllers
 {
@@ -83,7 +88,9 @@ namespace PlanetExpress.Controllers
                 {
                     Method = "PUT",
                     Rel = "status-delivered",
-                    Href = Url.Link("ChangeStatusById", new {id = delivery.Id, status = "delivered"})
+                    //Href = Url.Link("ChangeStatusById", new {id = delivery.Id, status = "delivered"})
+                    //Href = this.GetTemplatedHref("ChangeStatusById")
+                    Href =  Url.Template("GetEmployeeById")
                 }
             };
             return links;
@@ -113,7 +120,7 @@ namespace PlanetExpress.Controllers
             return Ok(delivery.Status);
         }
 
-        [HttpPut, Route("{id}/status", Name = "ChangeStatusById")]
+        [HttpPut, Route("{id}/status{?status}", Name = "ChangeStatusById")]
         public IHttpActionResult ChangeStatus(string id, [FromUri]string status)
         {
             var delivery = Deliveries.FirstOrDefault(d => d.Id == id);
@@ -126,6 +133,93 @@ namespace PlanetExpress.Controllers
         }
 
         public IList<Delivery> Deliveries { get; protected set; }
+    }
+
+    public interface ITemplatedLink
+    {
+        string Href { get; }
+        ITemplatedLink WithQueryParam(string queryParamName);
+        ITemplatedLink WithQueryParam(string queryParamName, object queryParamValue);
+        ITemplatedLink WithRouteValue(string paramName, object paramValue);
+    }
+
+    class TemplatedLink : ITemplatedLink
+    {
+        private readonly string _routeName;
+        private readonly IDictionary<string, object> _routeValues;
+        private readonly IList<string> _queryParams;
+        private readonly IDictionary<string, object> _queryParamsValues;
+
+        public TemplatedLink(string routeName)
+        {
+            _routeName = routeName;
+            _routeValues = new HttpRouteValueDictionary();
+            _queryParamsValues = new HttpRouteValueDictionary();
+            _queryParams = new List<string>();
+        }
+
+        public TemplatedLink(string routeName, IDictionary<string, object> routeValues, IList<string> queryParams, IDictionary<string, object> queryParamsValues)
+        {
+            _routeName = routeName;
+            _routeValues = routeValues;
+            _queryParams = queryParams;
+            _queryParamsValues = queryParamsValues;
+        }
+
+        public virtual string Href
+        {
+            get { return GenerateHref(); }
+        }
+
+        protected virtual string GenerateHref()
+        {
+            throw new NotImplementedException();
+        }
+
+        public virtual ITemplatedLink WithQueryParam(string queryParamName)
+        {
+            var qp = new List<string>(_queryParams) {queryParamName};
+            return new TemplatedLink(_routeName, _routeValues, qp, _queryParamsValues);
+        }
+
+        public virtual ITemplatedLink WithQueryParam(string queryParamName, object queryParamValue)
+        {
+            var qpv = new HttpRouteValueDictionary(_queryParamsValues) {{queryParamName, queryParamValue}};
+            return new TemplatedLink(_routeName, _routeValues, _queryParams, qpv);
+        }
+
+        public virtual ITemplatedLink WithRouteValue(string paramName, object paramValue)
+        {
+            var rpv = new HttpRouteValueDictionary(_routeValues) { { paramName, paramValue } };
+            return new TemplatedLink(_routeName, rpv, _queryParams, _queryParamsValues);
+        }
+    }
+
+
+    public static class UrlHelperExtensions
+    {
+        public static string Template(this UrlHelper url, string routeName)
+        {
+            return Template(url, routeName, new HttpRouteValueDictionary());
+        }
+
+        public static string Template(this UrlHelper url, string routeName, object routeValues)
+        {
+            return Template(url, routeName, new HttpRouteValueDictionary(routeValues));
+        }
+
+        public static string Template(this UrlHelper url, string routeName, IDictionary<string, object> routeValues, string controllerName = "")
+        {
+            var configuration = url.Request.GetConfiguration();
+            var routeTemplate = configuration.Routes[routeName].RouteTemplate;
+            
+            var baseUri = new Uri(url.Request.RequestUri.GetLeftPart(UriPartial.Authority));
+            var templatedHref = new Uri(baseUri, routeTemplate).ToString();
+            
+            return string.IsNullOrEmpty(controllerName) ?
+                templatedHref :
+                templatedHref.Replace("{controller}", controllerName.ToLower());
+        }
     }
 
     public class Delivery

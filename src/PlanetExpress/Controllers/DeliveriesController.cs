@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Web.Http;
 using System.Web.Http.Routing;
 using PlanetExpress.Models;
+using System.Text;
 
 //TODO: client
 //TODO: templates
@@ -90,7 +91,12 @@ namespace PlanetExpress.Controllers
                     Rel = "status-delivered",
                     //Href = Url.Link("ChangeStatusById", new {id = delivery.Id, status = "delivered"})
                     //Href = this.GetTemplatedHref("ChangeStatusById")
-                    Href =  Url.Template("GetEmployeeById")
+                    //Href =  Url.Template("GetEmployeeById")
+                    Href =  Url.Template("ChangeStatusById")
+                            .WithRouteValue("id", delivery.Id)
+                            .WithQueryParam("status", "delivered")
+                            .WithQueryParam("sth")
+                            .Href
                 }
             };
             return links;
@@ -120,7 +126,7 @@ namespace PlanetExpress.Controllers
             return Ok(delivery.Status);
         }
 
-        [HttpPut, Route("{id}/status{?status}", Name = "ChangeStatusById")]
+        [HttpPut, Route("{id}/status", Name = "ChangeStatusById")]
         public IHttpActionResult ChangeStatus(string id, [FromUri]string status)
         {
             var delivery = Deliveries.FirstOrDefault(d => d.Id == id);
@@ -145,22 +151,28 @@ namespace PlanetExpress.Controllers
 
     class TemplatedLink : ITemplatedLink
     {
+        private readonly UrlHelper _url;
         private readonly string _routeName;
+        private readonly string _controller;
         private readonly IDictionary<string, object> _routeValues;
         private readonly IList<string> _queryParams;
         private readonly IDictionary<string, object> _queryParamsValues;
 
-        public TemplatedLink(string routeName)
+        public TemplatedLink(UrlHelper url, string routeName, string controller = "")
         {
+            _url = url;
             _routeName = routeName;
+            _controller = controller;
             _routeValues = new HttpRouteValueDictionary();
             _queryParamsValues = new HttpRouteValueDictionary();
             _queryParams = new List<string>();
         }
 
-        public TemplatedLink(string routeName, IDictionary<string, object> routeValues, IList<string> queryParams, IDictionary<string, object> queryParamsValues)
+        protected TemplatedLink(UrlHelper url, string routeName, string controller, IDictionary<string, object> routeValues, IList<string> queryParams, IDictionary<string, object> queryParamsValues)
         {
+            _url = url;
             _routeName = routeName;
+            _controller = controller;
             _routeValues = routeValues;
             _queryParams = queryParams;
             _queryParamsValues = queryParamsValues;
@@ -173,52 +185,75 @@ namespace PlanetExpress.Controllers
 
         protected virtual string GenerateHref()
         {
-            throw new NotImplementedException();
+            var configuration = _url.Request.GetConfiguration();
+            var routeTemplate = configuration.Routes[_routeName].RouteTemplate;
+
+            var baseUri = new Uri(_url.Request.RequestUri.GetLeftPart(UriPartial.Authority));
+            var templatedHref = new Uri(baseUri, routeTemplate).ToString();
+
+            foreach (var rv in _routeValues)
+            {
+                templatedHref = templatedHref.Replace("{" + rv.Key + "}", rv.Value.ToString());
+            }   
+         
+            //before adding anything else, make sure the last char wasn't slash
+            templatedHref = templatedHref.Last() == '/' ? templatedHref.Substring(0, templatedHref.Length - 1) : templatedHref;
+
+            if (_queryParamsValues.Any())
+            {
+                StringBuilder bld = new StringBuilder("?");
+
+                foreach (var qpv in _queryParamsValues)
+                {
+                    bld.AppendFormat("{0}={1}&", qpv.Key, qpv.Value.ToString());
+                }
+
+                templatedHref = templatedHref + bld.ToString(0, bld.Length - 1);
+            }
+
+            if (_queryParams.Any())
+            {
+                StringBuilder bld = new StringBuilder(_queryParamsValues.Any() ? "{&" : "{?");
+
+                foreach (var qp in _queryParams)
+                {
+                    bld.Append(qp).Append(",");
+                }
+                
+                templatedHref = templatedHref + bld.ToString(0, bld.Length - 1) + "}";
+            }
+            
+            //return templatedHref;
+
+            return string.IsNullOrEmpty(_controller) ?
+                templatedHref :
+                templatedHref.Replace("{controller}", _controller.ToLower());
         }
 
         public virtual ITemplatedLink WithQueryParam(string queryParamName)
         {
             var qp = new List<string>(_queryParams) {queryParamName};
-            return new TemplatedLink(_routeName, _routeValues, qp, _queryParamsValues);
+            return new TemplatedLink(_url, _routeName, _controller, _routeValues, qp, _queryParamsValues);
         }
 
         public virtual ITemplatedLink WithQueryParam(string queryParamName, object queryParamValue)
         {
             var qpv = new HttpRouteValueDictionary(_queryParamsValues) {{queryParamName, queryParamValue}};
-            return new TemplatedLink(_routeName, _routeValues, _queryParams, qpv);
+            return new TemplatedLink(_url, _routeName, _controller, _routeValues, _queryParams, qpv);
         }
 
         public virtual ITemplatedLink WithRouteValue(string paramName, object paramValue)
         {
             var rpv = new HttpRouteValueDictionary(_routeValues) { { paramName, paramValue } };
-            return new TemplatedLink(_routeName, rpv, _queryParams, _queryParamsValues);
+            return new TemplatedLink(_url, _routeName, _controller, rpv, _queryParams, _queryParamsValues);
         }
     }
-
-
+    
     public static class UrlHelperExtensions
     {
-        public static string Template(this UrlHelper url, string routeName)
+        public static ITemplatedLink Template(this UrlHelper url, string routeName, string controllerName = "")
         {
-            return Template(url, routeName, new HttpRouteValueDictionary());
-        }
-
-        public static string Template(this UrlHelper url, string routeName, object routeValues)
-        {
-            return Template(url, routeName, new HttpRouteValueDictionary(routeValues));
-        }
-
-        public static string Template(this UrlHelper url, string routeName, IDictionary<string, object> routeValues, string controllerName = "")
-        {
-            var configuration = url.Request.GetConfiguration();
-            var routeTemplate = configuration.Routes[routeName].RouteTemplate;
-            
-            var baseUri = new Uri(url.Request.RequestUri.GetLeftPart(UriPartial.Authority));
-            var templatedHref = new Uri(baseUri, routeTemplate).ToString();
-            
-            return string.IsNullOrEmpty(controllerName) ?
-                templatedHref :
-                templatedHref.Replace("{controller}", controllerName.ToLower());
+            return new TemplatedLink(url, routeName, controllerName);
         }
     }
 
@@ -240,9 +275,4 @@ namespace PlanetExpress.Controllers
             Status = status;
         }
     }
-
-    
-
-    
-
 }
